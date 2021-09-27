@@ -7,7 +7,8 @@ use pancurses::{Input, Window};
 use rand::{Rng};
 
 fn main() {
-    let mut world = World { w: 8, h: 8, player: Option::None, enemies: Vec::new() };
+    println!("{:o}", 42);
+    let mut world = World { w: 8, h: 8, player: None, enemies: Vec::new() };
     let mut board = BoardRenderer { scene_index: HashMap::new() };
 
     world.restart_game();
@@ -16,6 +17,8 @@ fn main() {
 
     let terminal: Window = pancurses::initscr();
     terminal.keypad(true);
+
+    world.return_one().as_mut();
 
     loop {
         screen_buffer.clear();
@@ -72,12 +75,16 @@ trait InputProvider {
 
 impl World {
 
+    fn return_one(&self) -> Result<i32, &str> {
+        return Ok(42);
+    }
+
     fn restart_game(&mut self) {
-        self.player = Some(Vec2i { x: &self.w / 2, y: &self.h - 1 });
+        self.player = Some(Vec2i { x: self.w / 2, y: self.h - 1 });
         self.enemies.clear()
     }
 
-    fn update(&mut self, window: &dyn InputProvider) {
+    fn update(&mut self, window: &impl InputProvider) {
         match window.poll_input() {
             GameInput::Move { dir } => {
                 if let Some(player) = self.player {
@@ -89,15 +96,15 @@ impl World {
             }
             GameInput::None => {}
             GameInput::Restart => {
-                if self.player == None {
+                if self.player.is_none() {
                     self.restart_game();
                     return;
                 }
             }
         }
 
-        for mut x in &mut self.enemies {
-            x.pos = x.pos + Vec2i { x: 0, y: 1 };
+        for x in &mut self.enemies {
+            x.pos += Vec2i { x: 0, y: 1 };
             if Some(x.pos) == self.player {
                 self.player = None
             }
@@ -141,16 +148,14 @@ impl BoardRenderer {
         for y in 0..world.h {
             for x in 0..world.w {
                 s.push(match self.scene_index.get(&Vec2i { x, y }) {
-                    None => { ' ' }
-                    Some(value) => match value {
-                        ObjectType::Enemy => { 'o' }
-                        ObjectType::Player => { '^' }
-                    },
+                    None => ' ',
+                    Some(ObjectType::Enemy)=> 'o',
+                    Some(ObjectType::Player) => '^',
                 });
             }
             s.push_str("\n");
         }
-        if let None = &world.player {
+        if world.player.is_none() {
             s.push_str("GAMEOVER\n");
             s.push_str("PressESC\n");
         }
@@ -160,7 +165,16 @@ impl BoardRenderer {
 impl ops::Add for Vec2i {
     type Output = Vec2i;
 
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         return Vec2i { x: self.x + rhs.x, y: self.y + rhs.y };
+    }
+}
+
+impl ops::AddAssign for Vec2i {
+
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs
     }
 }
